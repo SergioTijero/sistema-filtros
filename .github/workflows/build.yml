@@ -32,7 +32,7 @@ jobs:
         }
 
     - name: Compile Installer (Inno Setup)
-      uses: Minionguyjosh/iscc-action@v1.0.0
+      uses: Minionguyjosh/iscc@v1
       with:
         script_path: "./setup_script.iss"
 
