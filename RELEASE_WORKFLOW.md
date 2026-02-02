@@ -1,31 +1,50 @@
-# Protocolo de Actualización (Sistema de Instalador)
+# ☁️ Protocolo de Lanzamiento Automático (GitHub Actions)
 
-Para generar una actualización que los usuarios puedan instalar automáticamente:
+¡Bienvenido al nivel profesional! Ahora **no necesitas usar Windows** para crear el actualizador. GitHub lo hará por ti en la nube.
 
-## 1. Preparación
-1.  **Código**: Incrementa `VERSION = "X.X"` en `main.py`.
-2.  **Versión**: Pon el número `X.X` en `version.txt`.
+## Prerrequisitos
+1.  **Icono**: Asegúrate de que `app.ico` está en el repositorio de GitHub (en la raíz).
+2.  **Configuración**: Asegúrate de que los permisos de GitHub Actions están activos en tu repositorio (Settings > Actions > General > Workflow permissions > Read and write permissions).
 
-## 2. Compilación (Windows)
-1.  **Ejecutable**: Corre `build_windows.bat`. Se creará `dist/FiltrosExpress.exe`.
-2.  **Instalador**:
-    *   Abre `setup_script.iss` con **Inno Setup**.
-    *   Dale al botón "Compile" (o Run).
-    *   Esto generará un archivo llamado `Setup_FiltrosExpress.exe` en la carpeta `Output` (se creará sola).
+---
 
-## 3. Publicación (GitHub)
-1.  **Código**: Commit y Push de los cambios (`main.py` y `version.txt`).
-    *   *Esto activa la alerta en el PC del cliente.*
-2.  **Release**:
-    *   Ve a GitHub > Releases > New Release.
-    *   Tag: `vX.X` (IMPORTANTE: Debe coincidir con el número que pusiste en el código).
-    *   **Binarios**: Sube el archivo `Setup_FiltrosExpress.exe` (el de la carpeta Output, NO el de dist).
-    *   Publish.
+## 🚀 Cómo Lanzar una Nueva Versión (Desde Mac)
 
-## 4. Resultado
-El cliente verá el botón "ACTUALIZAR".
-Al hacer clic:
-1.  Su programa descargará `Setup_FiltrosExpress.exe` desde GitHub.
-2.  Se cerrará.
-3.  Se abrirá el instalador.
-4.  Él solo dará "Siguiente > Instalar" y tendrá la nueva versión.
+Supongamos que quieres lanzar la **Versión 1.3**.
+
+### 1. Actualiza el Código
+*   En `main.py`: `VERSION = "1.3"`
+*   En `setup_script.iss`: `#define MyAppVersion "1.3"`
+*   En `version.txt`: `1.3`
+
+### 2. Sube los Cambios
+Desde tu terminal en Mac:
+```bash
+git add .
+git commit -m "Preparando versión 1.3"
+git push
+```
+
+### 3. Activa el "Robot" (Tag)
+Para que GitHub sepa que esto es una versión oficial y empiece a construir el `.exe`, debes ponerle una etiqueta ("Tag"):
+
+```bash
+git tag v1.3
+git push origin v1.3
+```
+
+### 4. Espera y Disfruta
+1.  Ve a tu repositorio en GitHub > pestaña **Actions**.
+2.  Verás un proceso girando llamado "Build Windows Installer".
+3.  Espera unos 2-3 minutos.
+4.  Cuando termine (Tick verde ✅), ve a la pestaña **Releases**.
+5.  ¡MAGIA! GitHub habrá creado el "Release v1.3" y habrá subido el archivo `Setup_FiltrosExpress.exe` automáticamente.
+
+---
+
+## ✅ Experiencia del Usuario (Tu Papá)
+1.  Su programa le avisa "ACTUALIZAR" (porque vio el `version.txt` nuevo).
+2.  Le da clic.
+3.  El programa baja el instalador `Setup...exe` que GitHub creó.
+4.  Se abre el asistente de instalación.
+5.  Actualiza y **MANTIENE TODOS SUS DATOS** (porque ahora viven en `%APPDATA%`).

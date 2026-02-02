@@ -14,8 +14,18 @@ from typing import Tuple, Optional, List
 # CONFIGURATION & THEME
 # ==========================================
 class Config:
-    DB_NAME = "inventory.db"
-    APP_TITLE = "Filtros Express PRO"
+    # Database Config - Persist in AppData/Roaming to survive updates/reinstalls
+    if os.name == 'nt':
+        APP_DATA_DIR = os.path.join(os.environ['APPDATA'], "FiltrosExpress")
+    else:
+        APP_DATA_DIR = os.path.join(os.path.expanduser("~"), "Documents", "FiltrosExpress")
+    
+    if not os.path.exists(APP_DATA_DIR):
+        os.makedirs(APP_DATA_DIR)
+        
+    DB_NAME = os.path.join(APP_DATA_DIR, "inventory.db")
+    
+    APP_TITLE = "Sistema de Filtros Express PRO"
     
     # --- Color Palette (High Contrast / Professional) ---
     
@@ -444,14 +454,12 @@ class MainApp(tk.Tk):
         self.lbl_ver.pack_forget()
 
     def download_and_install(self, new_version):
-        if not messagebox.askyesno("Actualización", f"Se ha encontrado la versión {new_version}.\n\nEl programa se cerrará para descargar e instalar lare nueva versión automáticamente.\n\n¿Deseas continuar?"):
+        if not messagebox.askyesno("Actualización", f"Se ha encontrado la versión {new_version}.\n\nEl programa descargará el instalador automático.\n\n¿Deseas continuar?"):
             return
             
         url = Config.DOWNLOAD_URL_TEMPLATE.format(ver=new_version)
         installer_path = os.path.join(tempfile.gettempdir(), f"Setup_FiltrosExpress_v{new_version}.exe")
         
-        # Show progress (Simple blocking for now to keep it lightweight)
-        # In a real app we'd use a progress bar window
         self.btn_update.configure(text="DESCARGANDO...", state="disabled")
         self.update_idletasks()
         
@@ -466,10 +474,10 @@ class MainApp(tk.Tk):
         threading.Thread(target=_dl_worker, daemon=True).start()
 
     def _run_installer(self, path):
-        messagebox.showinfo("Listo", "La descarga se completó.\n\nEl instalador se abrirá ahora.")
+        messagebox.showinfo("Listo", "La descarga se completó.\n\nSe abrirá el Asistente de Instalación.\nSigue los pasos para actualizar.")
         try:
             subprocess.Popen([path], shell=True)
-            self.destroy() # Close App
+            self.destroy() # Close App so installer can overwrite files
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo abrir el instalador: {e}")
         

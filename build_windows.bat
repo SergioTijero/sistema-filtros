@@ -3,36 +3,39 @@ echo ===================================================
 echo   GENERADOR DE INSTALADOR - FILTROS EXPRESS PRO
 echo ===================================================
 echo.
-echo Este script convertira el codigo Python en un programa (.exe)
-echo que funciona sin necesidad de instalar Python en otras maquinas.
-echo.
-echo Requisitos previos: Tener Python instalado en ESTA maquina.
+echo Requisitos:
+echo 1. Python instalado.
+echo 2. Archivo 'app.ico' presente (opcional, pero recomendado).
 echo.
 pause
 
 echo.
-echo [1/3] Instalando herramienta de creacion (PyInstaller)...
+echo [1/3] Verificando entorno...
 pip install pyinstaller
 
 echo.
-echo [2/3] Generando el Ejecutable (FiltrosExpress.exe)...
-echo Esto puede tomar unos minutos...
-:: --noconsole: No mostrar la ventana negra de fondo
-:: --onefile: Crear un solo archivo .exe portable
-:: --name: Nombre del programa
-pyinstaller --noconsole --onefile --name "FiltrosExpress" main.py
+echo [2/3] Generando el Ejecutable...
+
+:: Check for icon
+if exist "app.ico" (
+    echo Icono detectado. Usando app.ico...
+    pyinstaller --noconsole --onefile --icon="app.ico" --name "FiltrosExpress" main.py
+) else (
+    echo [AVISO] No se encontro app.ico. Usando icono por defecto.
+    pyinstaller --noconsole --onefile --name "FiltrosExpress" main.py
+)
 
 echo.
-echo [3/3] Limpieza de archivos temporales...
+echo [3/3] Limpieza...
 rmdir /s /q build
 del /q "FiltrosExpress.spec"
 
 echo.
 echo ===================================================
-echo   EXITO!
+echo   COMPILACION TERMINADA
 echo ===================================================
 echo.
-echo Tu programa esta listo en la carpeta "dist".
-echo Puedes copiar "FiltrosExpress.exe" al Escritorio.
+echo El archivo ejecutable esta en la carpeta "dist".
+echo AHORA: Usa Inno Setup Compiler para crear el Instalador final.
 echo.
 pause
