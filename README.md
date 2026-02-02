@@ -1,41 +1,34 @@
-# Sistema de Filtros Express PRO 🚀 (v2.2)
+# Sistema de Filtros Express PRO 🚀 (v1.0)
 
-Sistema de escritorio ligero para la gestión de inventario y precios de filtros de autos. Diseñado para funcionar en PCs de bajos recursos con Windows 10/11.
+Sistema de escritorio profesional para la gestión de inventario y precios.
 
 ## Características
 
-*   **Busqueda Inteligente**: Autocompletado de clientes y búsqueda rápida de filtros.
-*   **Gestión de Precios**:
-    *   Precios Generales de Venta.
-    *   **Precios Especiales** por Cliente (resaltados en verde).
-*   **Control de Stock**: Semaforización (Verde/Amarillo/Rojo) y alertas de stock bajo.
-*   **Reportes**: Tablas de resumen de inventario y clientes.
-*   **Auto-Actualizable**: Detecta nuevas versiones en GitHub.
-*   **Portable**: Base de datos SQLite integrada.
+*   **Busqueda Inteligente**: Autocompletado de clientes y búsqueda rápida.
+*   **Gestión de Precios**: Precios Generales y **Especiales** (por cliente).
+*   **Stock**: Semaforización y alertas.
+*   **Instalador Nativo**: Se instala en Windows como un programa real.
+*   **Auto-Actualizable**: Descarga e instala actualizaciones automáticamente desde GitHub.
 
-## Instalación en Windows
+## Descarga (Usuarios)
 
-Para instalar este programa en una computadora con Windows:
+1.  Ve a la sección **[Releases](../../releases)**.
+2.  Descarga el último `Setup_FiltrosExpress.exe`.
+3.  Ejecútalo e Instala.
 
-1.  Descarga este repositorio (Botón verde "Code" > "Download ZIP") o clónalo con Git.
-2.  Sigue las instrucciones en el archivo [GUIA DE INSTALACION (INSTALL_GUIDE.md)](INSTALL_GUIDE.md) para generar el ejecutable `.exe`.
+## Desarrollo (Cómo Compilar)
 
-## ⚙️ Configuración de Actualizaciones
+Si eres el desarrollador y quieres generar una nueva versión:
+👉 **LEE EL ARCHIVO [RELEASE_WORKFLOW.md](RELEASE_WORKFLOW.md)**.
 
-Para que el botón de "Actualizar" funcione, debes editar las líneas 46-48 de `main.py` antes de compilar:
+Allí se explica cómo:
+1.  Generar el `.exe` con Python.
+2.  Empaquetarlo con **Inno Setup**.
+3.  Publicarlo para que los clientes se actualicen solos.
 
-```python
-# main.py
-UPDATE_URL_RAW = "https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/version.txt"
-REPO_URL = "https://github.com/TU_USUARIO/TU_REPO"
-```
-
-1.  Crea un archivo `version.txt` en tu repo con el número de versión (ej: `2.3`).
-2.  Si el programa local es `2.2` y en GitHub dice `2.3`, aparecerá un botón verde "🚀 ACTUALIZAR".
-
-## Requisitos Técnicos
-*   Python 3.x (solo para compilar).
-*   Librerías: `tkinter`, `sqlite3` (Nativas).
+## Requisitos de Desarrollo
+*   Python 3.x
+*   Inno Setup Compiler (para crear el instalador).
 
 ---
-*Desarrollado para gestión eficiente de talleres y refaccionarias.*
+*Desarrollado por Sergio Tijero.*
