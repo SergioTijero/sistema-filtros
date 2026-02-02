@@ -1,7 +1,11 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
 import sqlite3
 import os
+import threading
+import urllib.request
+import webbrowser
+import subprocess
+import sys
+import tempfile
 from typing import Tuple, Optional, List
 
 # ==========================================
@@ -39,6 +43,13 @@ class Config:
 
     # Fonts
     FONT_FAMILY = "Segoe UI"
+
+    # Version Control
+    VERSION = "1.0"
+    # URL RAW del archivo version.txt para comprobar actualizaciones
+    UPDATE_URL_RAW = "https://raw.githubusercontent.com/SergioTijero/sistema-filtros/main/version.txt" 
+    # Plantilla de Descarga del Instalador (se remplaza {ver} por el numero)
+    DOWNLOAD_URL_TEMPLATE = "https://github.com/SergioTijero/sistema-filtros/releases/download/v{ver}/Setup_FiltrosExpress.exe"
     
     @classmethod
     def font_h1(cls): return (cls.FONT_FAMILY, 26, "bold")
@@ -378,12 +389,31 @@ class DatabaseService:
             return conn.execute("SELECT id, name FROM clients ORDER BY name").fetchall()
 
 # ==========================================
+# UPDATE CHECKER
+# ==========================================
+class UpdateChecker:
+    @staticmethod
+    def check_for_updates(callback):
+        def _check():
+            try:
+                # 1 second timeout to not block if offline
+                with urllib.request.urlopen(Config.UPDATE_URL_RAW, timeout=3) as response:
+                    data = response.read().decode('utf-8').strip()
+                    if data > Config.VERSION:
+                        callback(data)
+            except:
+                pass # Silent fail if offline or invalid URL
+        
+        thread = threading.Thread(target=_check, daemon=True)
+        thread.start()
+
+# ==========================================
 # MAIN APPLICATION
 # ==========================================
 class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title(Config.APP_TITLE)
+        self.title(f"{Config.APP_TITLE} (v{Config.VERSION})")
         self.geometry("1150x750")
         self.configure(bg=Config.COL_SIDEBAR_BG)
         
@@ -395,7 +425,52 @@ class MainApp(tk.Tk):
         self.view_admin = AdminView(self.main_area, self.db)
         
         self.show_view("consult")
+        
+        # Check Updates
+        UpdateChecker.check_for_updates(self.on_update_found)
 
+    def on_update_found(self, new_version):
+        # Thread-safe UI update
+        self.after(0, lambda: self.show_update_btn(new_version))
+
+    def show_update_btn(self, new_version):
+        self.btn_update = SidebarButton(self.sidebar, f"ACTUALIZAR (v{new_version})", 
+                                        lambda: self.download_and_install(new_version), "🚀")
+        self.btn_update.configure(bg=Config.COL_SUCCESS, fg="white", activebackground=Config.COL_SUCCESS_HOVER)
+        self.btn_update.pack(side="bottom", fill="x", pady=0)
+        # Move version label up or hide it
+        self.lbl_ver.pack_forget()
+
+    def download_and_install(self, new_version):
+        if not messagebox.askyesno("Actualización", f"Se ha encontrado la versión {new_version}.\n\nEl programa se cerrará para descargar e instalar lare nueva versión automáticamente.\n\n¿Deseas continuar?"):
+            return
+            
+        url = Config.DOWNLOAD_URL_TEMPLATE.format(ver=new_version)
+        installer_path = os.path.join(tempfile.gettempdir(), f"Setup_FiltrosExpress_v{new_version}.exe")
+        
+        # Show progress (Simple blocking for now to keep it lightweight)
+        # In a real app we'd use a progress bar window
+        self.btn_update.configure(text="DESCARGANDO...", state="disabled")
+        self.update_idletasks()
+        
+        def _dl_worker():
+            try:
+                urllib.request.urlretrieve(url, installer_path)
+                self.after(0, lambda: self._run_installer(installer_path))
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Error", f"Error al descargar: {str(e)}"))
+                self.after(0, lambda: self.btn_update.configure(text=f"REINTENTAR (v{new_version})", state="normal"))
+
+        threading.Thread(target=_dl_worker, daemon=True).start()
+
+    def _run_installer(self, path):
+        messagebox.showinfo("Listo", "La descarga se completó.\n\nEl instalador se abrirá ahora.")
+        try:
+            subprocess.Popen([path], shell=True)
+            self.destroy() # Close App
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo abrir el instalador: {e}")
+        
     def _setup_layout(self):
         # Sidebar
         self.sidebar = tk.Frame(self, bg=Config.COL_SIDEBAR_BG, width=260)
@@ -412,7 +487,8 @@ class MainApp(tk.Tk):
         SidebarButton(self.sidebar, "Administración", lambda: self.show_view("admin"), "⚙️").pack(fill="x")
         
         # Version
-        tk.Label(self.sidebar, text="v2.1 PRO", font=("Segoe UI", 9), bg=Config.COL_SIDEBAR_BG, fg="#475569").pack(side="bottom", pady=20)
+        self.lbl_ver = tk.Label(self.sidebar, text=f"v{Config.VERSION} PRO", font=("Segoe UI", 9), bg=Config.COL_SIDEBAR_BG, fg="#475569")
+        self.lbl_ver.pack(side="bottom", pady=20)
 
         # Right Main Area
         self.main_area = tk.Frame(self, bg=Config.COL_MAIN_BG)
