@@ -31,10 +31,13 @@ jobs:
           pyinstaller --noconsole --onefile --name "FiltrosExpress" main.py
         }
 
+    - name: Install Inno Setup
+      run: |
+        choco install innosetup --no-progress
+
     - name: Compile Installer (Inno Setup)
-      uses: Minionguyjosh/iscc@v1
-      with:
-        script_path: "./setup_script.iss"
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup_script.iss
 
     - name: Create Release
       id: create_release
