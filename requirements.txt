@@ -1,0 +1,8 @@
+# No external libraries are required.
+# This project uses only Python's standard library:
+# - tkinter (for the UI)
+# - sqlite3 (for the database)
+# - os
+
+# You just need to have Python installed.
+# On Windows, make sure to check "tcl/tk and IDLE" during installation if it's not selected by default (usually it is).
