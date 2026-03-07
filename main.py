@@ -10,6 +10,7 @@ import webbrowser
 import subprocess
 import sys
 import tempfile
+import ssl
 from typing import Tuple, Optional, List
 
 # ==========================================
@@ -59,7 +60,7 @@ class Config:
     FONT_FAMILY = "Segoe UI"
 
     # Version Control
-    VERSION = "1.2"
+    VERSION = "1.3"
     # URL RAW del archivo version.txt para comprobar actualizaciones
     UPDATE_URL_RAW = "https://raw.githubusercontent.com/SergioTijero/sistema-filtros/main/version.txt" 
     # Plantilla de Descarga del Instalador (se remplaza {ver} por el numero)
@@ -627,7 +628,12 @@ class MainApp(tk.Tk):
         
         def _dl_worker():
             try:
-                urllib.request.urlretrieve(url, installer_path)
+                ssl_ctx = ssl.create_default_context()
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+                with urllib.request.urlopen(url, context=ssl_ctx) as response:
+                    with open(installer_path, 'wb') as out_file:
+                        out_file.write(response.read())
                 self.after(0, lambda: self._run_installer(installer_path))
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Error", f"Error al descargar: {str(e)}"))
