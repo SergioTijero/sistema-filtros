@@ -59,7 +59,7 @@ class Config:
     FONT_FAMILY = "Segoe UI"
 
     # Version Control
-    VERSION = "1.0"
+    VERSION = "1.2"
     # URL RAW del archivo version.txt para comprobar actualizaciones
     UPDATE_URL_RAW = "https://raw.githubusercontent.com/SergioTijero/sistema-filtros/main/version.txt" 
     # Plantilla de Descarga del Instalador (se remplaza {ver} por el numero)
