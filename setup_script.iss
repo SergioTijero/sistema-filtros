@@ -1,8 +1,11 @@
 ; Script generado para Inno Setup
 ; Documentación: http://www.jrsoftware.org/ishelp/
 
+#ifndef MyAppVersion
+  #define MyAppVersion "1.3"
+#endif
+
 #define MyAppName "Sistema Filtros Express"
-#define MyAppVersion "1.0"
 #define MyAppPublisher "Sergio Tijero"
 #define MyAppURL "https://github.com/SergioTijero/sistema-filtros"
 #define MyAppExeName "FiltrosExpress.exe"
@@ -11,10 +14,13 @@
 AppId={{A1B2C3D4-E5F6-7890-1234-56789ABCDEF0}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
+VersionInfoVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyAppVersion}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputBaseFilename=Setup_FiltrosExpress
