@@ -39,7 +39,10 @@ jobs:
 
     - name: Compile Installer (Inno Setup)
       run: |
-        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup_script.iss
+        $rawRef = "${{ github.ref_name }}"
+        $version = $rawRef.TrimStart('v')
+        if (-not ($version -match '^\d+\.\d+')) { $version = "1.3" }
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$version" setup_script.iss
 
     - name: Create Release
       id: create_release
