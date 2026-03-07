@@ -1,6 +1,8 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import sqlite3
+import csv
+import datetime
 import os
 import threading
 import urllib.request
@@ -400,6 +402,165 @@ class DatabaseService:
         with self._get_connection() as conn:
             return conn.execute("SELECT id, name FROM clients ORDER BY name").fetchall()
 
+    def export_to_csv(self, filepath: str) -> str:
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT code, cost, price, stock FROM products ORDER BY code")
+                products = cursor.fetchall()
+                cursor.execute("SELECT name FROM clients ORDER BY name")
+                clients = cursor.fetchall()
+                cursor.execute("""
+                    SELECT c.name, p.code, sp.price
+                    FROM special_prices sp
+                    JOIN clients c ON sp.client_id = c.id
+                    JOIN products p ON sp.product_id = p.id
+                    ORDER BY c.name, p.code
+                """)
+                special_prices = cursor.fetchall()
+
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(['# TABLE: products'])
+                writer.writerow(['code', 'cost', 'price', 'stock'])
+                for row in products:
+                    writer.writerow(row)
+                writer.writerow([])
+                writer.writerow(['# TABLE: clients'])
+                writer.writerow(['name'])
+                for row in clients:
+                    writer.writerow(row)
+                writer.writerow([])
+                writer.writerow(['# TABLE: special_prices'])
+                writer.writerow(['client_name', 'product_code', 'price'])
+                for row in special_prices:
+                    writer.writerow(row)
+
+            return (f"Exportación exitosa: {len(products)} productos, "
+                    f"{len(clients)} clientes, {len(special_prices)} precios especiales.")
+        except Exception as e:
+            return f"Error al exportar: {e}"
+
+    def export_to_txt(self, filepath: str) -> str:
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT code, cost, price, stock FROM products ORDER BY code")
+                products = cursor.fetchall()
+                cursor.execute("SELECT name FROM clients ORDER BY name")
+                clients = cursor.fetchall()
+                cursor.execute("""
+                    SELECT c.name, p.code, sp.price
+                    FROM special_prices sp
+                    JOIN clients c ON sp.client_id = c.id
+                    JOIN products p ON sp.product_id = p.id
+                    ORDER BY c.name, p.code
+                """)
+                special_prices = cursor.fetchall()
+
+            sep = "=" * 60
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(f"{sep}\n")
+                f.write(f"  COPIA DE SEGURIDAD - {Config.APP_TITLE}\n")
+                f.write(f"  Generado: {datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                f.write(f"{sep}\n\n")
+
+                f.write(f"TABLA: products ({len(products)} registros)\n")
+                f.write("-" * 60 + "\n")
+                f.write(f"{'Código':<20} {'Costo':>10} {'Precio':>10} {'Stock':>8}\n")
+                f.write("-" * 60 + "\n")
+                for code, cost, price, stock in products:
+                    f.write(f"{code:<20} {cost:>10.2f} {price:>10.2f} {stock:>8}\n")
+                f.write("\n")
+
+                f.write(f"TABLA: clients ({len(clients)} registros)\n")
+                f.write("-" * 60 + "\n")
+                f.write(f"{'Nombre':<40}\n")
+                f.write("-" * 60 + "\n")
+                for (name,) in clients:
+                    f.write(f"{name:<40}\n")
+                f.write("\n")
+
+                f.write(f"TABLA: special_prices ({len(special_prices)} registros)\n")
+                f.write("-" * 60 + "\n")
+                f.write(f"{'Cliente':<25} {'Producto':<20} {'Precio':>10}\n")
+                f.write("-" * 60 + "\n")
+                for client_name, product_code, price in special_prices:
+                    f.write(f"{client_name:<25} {product_code:<20} {price:>10.2f}\n")
+                f.write("\n")
+
+            return (f"Exportación exitosa: {len(products)} productos, "
+                    f"{len(clients)} clientes, {len(special_prices)} precios especiales.")
+        except Exception as e:
+            return f"Error al exportar: {e}"
+
+    def import_from_csv(self, filepath: str) -> str:
+        try:
+            counts = {'products': 0, 'clients': 0, 'special_prices': 0}
+            errors = []
+
+            with open(filepath, 'r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                current_table = None
+                headers = None
+
+                for row in reader:
+                    if not row:
+                        current_table = None
+                        headers = None
+                        continue
+
+                    if row[0].startswith('# TABLE:'):
+                        current_table = row[0].replace('# TABLE:', '').strip()
+                        headers = None
+                        continue
+
+                    if current_table and headers is None:
+                        headers = row
+                        continue
+
+                    if current_table == 'products' and headers:
+                        try:
+                            msg = self.upsert_product(row[0], float(row[1]), float(row[2]), int(row[3]))
+                            if not msg.startswith("Error"):
+                                counts['products'] += 1
+                            else:
+                                errors.append(msg)
+                        except (IndexError, ValueError) as e:
+                            errors.append(f"Producto inválido {row}: {e}")
+
+                    elif current_table == 'clients' and headers:
+                        try:
+                            name = row[0].strip().upper()
+                            if name:
+                                msg = self.register_client(name)
+                                if "registrado" in msg:
+                                    counts['clients'] += 1
+                        except (IndexError, ValueError) as e:
+                            errors.append(f"Cliente inválido {row}: {e}")
+
+                    elif current_table == 'special_prices' and headers:
+                        try:
+                            msg = self.set_special_price(row[0], row[1], float(row[2]))
+                            if not msg.startswith("Error") and "no encontrado" not in msg.lower():
+                                counts['special_prices'] += 1
+                            else:
+                                errors.append(f"Precio especial: {msg}")
+                        except (IndexError, ValueError) as e:
+                            errors.append(f"Precio especial inválido {row}: {e}")
+
+            result = (f"Importación completada:\n"
+                      f"- Productos: {counts['products']}\n"
+                      f"- Clientes: {counts['clients']}\n"
+                      f"- Precios especiales: {counts['special_prices']}")
+            if errors:
+                result += f"\n\nAdvertencias ({len(errors)}):\n" + "\n".join(errors[:5])
+                if len(errors) > 5:
+                    result += f"\n... y {len(errors) - 5} más."
+            return result
+        except Exception as e:
+            return f"Error al importar: {e}"
+
 # ==========================================
 # UPDATE CHECKER
 # ==========================================
@@ -435,6 +596,7 @@ class MainApp(tk.Tk):
         
         self.view_consult = ConsultView(self.main_area, self.db)
         self.view_admin = AdminView(self.main_area, self.db)
+        self.view_backup = BackupView(self.main_area, self.db)
         
         self.show_view("consult")
         
@@ -495,6 +657,7 @@ class MainApp(tk.Tk):
         # Nav Buttons
         SidebarButton(self.sidebar, "Consultar Precios", lambda: self.show_view("consult"), "🔍").pack(fill="x")
         SidebarButton(self.sidebar, "Administración", lambda: self.show_view("admin"), "⚙️").pack(fill="x")
+        SidebarButton(self.sidebar, "Copias de Seguridad", lambda: self.show_view("backup"), "💾").pack(fill="x")
         
         # Version
         self.lbl_ver = tk.Label(self.sidebar, text=f"v{Config.VERSION} PRO", font=("Segoe UI", 9), bg=Config.COL_SIDEBAR_BG, fg="#475569")
@@ -515,6 +678,8 @@ class MainApp(tk.Tk):
         elif view_name == "admin":
             self.view_admin.pack(fill="both", expand=True, padx=40, pady=30)
             self.view_admin.refresh()
+        elif view_name == "backup":
+            self.view_backup.pack(fill="both", expand=True, padx=40, pady=30)
 
 # ==========================================
 # VIEW: CONSULT
@@ -722,6 +887,114 @@ class AdminView(tk.Frame):
         data = self.db.get_clients_summary()
         # Columns: id, name
         ListViewWindow(self, "Cartera de Clientes", ["ID", "Nombre"], data)
+
+# ==========================================
+# VIEW: BACKUP
+# ==========================================
+class BackupView(tk.Frame):
+    def __init__(self, parent, db: DatabaseService):
+        super().__init__(parent, bg=Config.COL_MAIN_BG)
+        self.db = db
+        self._build_ui()
+
+    def _build_ui(self):
+        tk.Label(self, text="Copias de Seguridad", font=Config.font_h1(),
+                 bg=Config.COL_MAIN_BG, fg=Config.COL_TEXT_TITLE).pack(anchor="w", pady=(0, 25))
+
+        container = tk.Frame(self, bg=Config.COL_MAIN_BG)
+        container.pack(fill="both", expand=True)
+
+        # --- EXPORTAR ---
+        c_export = RoundedCard(container)
+        c_export.pack(side="left", fill="both", expand=True, padx=(0, 15))
+
+        tk.Label(c_export, text="📤 Exportar Datos", font=Config.font_h2(),
+                 bg=Config.COL_CARD_BG, fg=Config.COL_TEXT_TITLE).pack(anchor="w", padx=25, pady=(25, 5))
+        tk.Label(c_export,
+                 text="Guarda una copia de todos los datos\n(productos, clientes y precios especiales).",
+                 font=Config.font_body(), bg=Config.COL_CARD_BG, fg=Config.COL_TEXT_MUTED,
+                 justify="left").pack(anchor="w", padx=25, pady=(0, 20))
+
+        PrimaryButton(c_export, "📄 Exportar CSV", self.export_csv).pack(fill="x", padx=25, pady=(0, 5))
+        tk.Label(c_export,
+                 text="Formato CSV: compatible con Excel e importación automática.",
+                 font=("Segoe UI", 9), bg=Config.COL_CARD_BG, fg=Config.COL_TEXT_MUTED,
+                 justify="left", wraplength=300).pack(anchor="w", padx=25, pady=(0, 20))
+
+        PrimaryButton(c_export, "📋 Exportar TXT", self.export_txt,
+                      bg_color="#475569", hover_color="#334155").pack(fill="x", padx=25, pady=(0, 5))
+        tk.Label(c_export,
+                 text="Formato TXT: legible para humanos, ideal para revisión o impresión.",
+                 font=("Segoe UI", 9), bg=Config.COL_CARD_BG, fg=Config.COL_TEXT_MUTED,
+                 justify="left", wraplength=300).pack(anchor="w", padx=25, pady=(0, 25))
+
+        # --- IMPORTAR ---
+        c_import = RoundedCard(container)
+        c_import.pack(side="right", fill="both", expand=True, padx=(15, 0))
+
+        tk.Label(c_import, text="📥 Importar Datos", font=Config.font_h2(),
+                 bg=Config.COL_CARD_BG, fg=Config.COL_TEXT_TITLE).pack(anchor="w", padx=25, pady=(25, 5))
+        tk.Label(c_import,
+                 text="Restaura datos desde un archivo CSV generado\npreviamente con la opción de exportar.",
+                 font=Config.font_body(), bg=Config.COL_CARD_BG, fg=Config.COL_TEXT_MUTED,
+                 justify="left").pack(anchor="w", padx=25, pady=(0, 20))
+
+        # Aviso
+        warn_frame = tk.Frame(c_import, bg="#fef9c3", bd=1, relief="flat")
+        warn_frame.pack(fill="x", padx=25, pady=(0, 20))
+        tk.Label(warn_frame,
+                 text="⚠️  Los registros existentes serán actualizados si coinciden.\nNo se eliminarán datos.",
+                 font=("Segoe UI", 9), bg="#fef9c3", fg=Config.COL_WARNING,
+                 justify="left", wraplength=280).pack(padx=10, pady=8, anchor="w")
+
+        PrimaryButton(c_import, "📂 Importar CSV", self.import_csv).pack(fill="x", padx=25, pady=(0, 25))
+
+    def export_csv(self):
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar copia de seguridad CSV",
+            defaultextension=".csv",
+            filetypes=[("Archivo CSV", "*.csv"), ("Todos los archivos", "*.*")]
+        )
+        if not filepath:
+            return
+        msg = self.db.export_to_csv(filepath)
+        if msg.startswith("Error"):
+            messagebox.showerror("Error al exportar", msg)
+        else:
+            messagebox.showinfo("Exportación exitosa", msg)
+
+    def export_txt(self):
+        filepath = filedialog.asksaveasfilename(
+            title="Exportar copia de seguridad TXT",
+            defaultextension=".txt",
+            filetypes=[("Archivo de texto", "*.txt"), ("Todos los archivos", "*.*")]
+        )
+        if not filepath:
+            return
+        msg = self.db.export_to_txt(filepath)
+        if msg.startswith("Error"):
+            messagebox.showerror("Error al exportar", msg)
+        else:
+            messagebox.showinfo("Exportación exitosa", msg)
+
+    def import_csv(self):
+        filepath = filedialog.askopenfilename(
+            title="Seleccionar archivo CSV para importar",
+            filetypes=[("Archivo CSV", "*.csv"), ("Todos los archivos", "*.*")]
+        )
+        if not filepath:
+            return
+        if not messagebox.askyesno(
+            "Confirmar importación",
+            "¿Deseas importar los datos del archivo seleccionado?\n\n"
+            "Los registros existentes podrían actualizarse.\nNo se eliminarán datos."
+        ):
+            return
+        msg = self.db.import_from_csv(filepath)
+        if msg.startswith("Error"):
+            messagebox.showerror("Error al importar", msg)
+        else:
+            messagebox.showinfo("Importación completada", msg)
 
 if __name__ == "__main__":
     app = MainApp()
