@@ -11,8 +11,11 @@ venv/
 
 # PyInstaller / Build
 build/
-dist/
 *.spec
+
+# Node / Vite
+node_modules/
+dist/
 
 # OS
 .DS_Store
