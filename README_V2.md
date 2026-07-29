@@ -53,4 +53,4 @@ El workflow `.github/workflows/build-tauri.yml` ejecuta la compilación del inst
 3. Selecciona el archivo y verifica el resumen de productos, clientes y precios especiales.
 4. Guarda una nueva copia CSV antes de actualizar o reinstalar.
 
-La aplicación Python de v1.3 se mantiene intacta como respaldo. Para la distribución final en Windows se recomienda envolver esta interfaz con Tauri y añadir SQLite local; así el usuario no necesitará instalar Python ni depender de un servidor web.
+La aplicación Python de v1.3 se mantiene intacta como respaldo. La distribución Windows de v2.0 ya se genera con Tauri + SQLite, por lo que el usuario no necesita instalar Python ni depender de un servidor web.
