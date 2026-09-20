@@ -1,17 +1,19 @@
 # Filtros Express PRO
 
-Aplicación local para consultar precios, administrar inventario, gestionar clientes y asignar tarifas especiales. La versión actual es **v2.0.0**: React + Vite para la interfaz, Tauri para el ejecutable de escritorio y SQLite para los datos locales.
+Aplicación local para consultar precios, administrar inventario, gestionar clientes y asignar tarifas especiales. La versión actual es **v2.0.1**: React + Vite para la interfaz, Tauri para el ejecutable de escritorio y SQLite para los datos locales.
 
 La versión Python 1.3 se conserva como línea anterior y como fuente de migración CSV.
 
 ## Descargar v2.0
 
-La versión publicada para Windows x64 está disponible en [GitHub Releases](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.0.0):
+La versión publicada para Windows x64 está disponible en [GitHub Releases](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.0.1):
 
-- [Instalador Windows `.exe`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.0.0/Filtros.Express.PRO_2.0.0_x64-setup.exe)
-- [Paquete Windows `.msi`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.0.0/Filtros.Express.PRO_2.0.0_x64_en-US.msi)
+- [Instalador Windows `.exe`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.0.1/Filtros.Express.PRO_2.0.1_x64-setup.exe)
+- [Paquete Windows `.msi`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.0.1/Filtros.Express.PRO_2.0.1_x64_en-US.msi)
 
 El instalador no requiere Python ni conexión a internet para trabajar con inventario, clientes o precios. La aplicación guarda la información en SQLite dentro de la carpeta de datos de la aplicación.
+
+En v2.0.1 cada cambio mantiene además una copia local de recuperación y las escrituras SQLite se serializan. Esto permite recuperar el último estado si Windows cierra la aplicación mientras se está guardando; las bases creadas por v2.0.0 se migran automáticamente al abrirse.
 
 ## Funciones de v2.0
 
@@ -119,7 +121,7 @@ main.py                      Aplicación Python v1.3 conservada
 
 ## Estado de la versión
 
-- Release: [v2.0.0](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.0.0)
+- Release: [v2.0.1](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.0.1)
 - Build Windows: [workflow Tauri](https://github.com/SergioTijero/sistema-filtros/actions/runs/30410971693)
 - Rama de integración: [`agent/release-v2-tauri`](https://github.com/SergioTijero/sistema-filtros/tree/agent/release-v2-tauri)
 
