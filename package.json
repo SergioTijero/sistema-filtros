@@ -1,7 +1,7 @@
 {
   "name": "filtros-express-pro-v2",
   "private": true,
-  "version": "2.0.1",
+  "version": "2.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "@fontsource/source-sans-3": "^5.3.0",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-sql": "^2.4.0",
+    "@tauri-apps/plugin-store": "^2.4.5",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
     "react": "latest",
