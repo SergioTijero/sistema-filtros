@@ -31,11 +31,11 @@ npm run preview
 - Barra lateral comprimible, navegación independiente y diseño responsive.
 - Exportación e importación CSV compatible con las tablas de v1.3.
 
-En modo navegador los datos se guardan en `localStorage`; al ejecutarse como aplicación Tauri se guardan en SQLite, sin cambiar las pantallas ni el formato de importación.
+En modo navegador los datos se guardan en `localStorage`; al ejecutarse como aplicación Tauri se guardan en un archivo JSON local, sin cambiar las pantallas ni el formato de importación.
 
-## Aplicación nativa Tauri + SQLite
+## Aplicación nativa Tauri + JSON
 
-El proyecto ya incluye el adaptador SQLite y la configuración de Tauri. En el navegador se conserva `localStorage`; dentro del ejecutable Tauri se usa `sqlite:filtros_express_pro.db` en la carpeta de datos de la aplicación.
+El proyecto incluye el plugin Store de Tauri. En el navegador se conserva `localStorage`; dentro del ejecutable Tauri se usa `filtros_express_pro.json` en la carpeta de datos de la aplicación. El lector SQLite queda únicamente para migrar instalaciones anteriores.
 
 Requisitos para compilar de forma nativa: Rust mediante `rustup`, Node.js y, en Windows, WebView2 y las herramientas de compilación de Visual Studio.
 
@@ -53,4 +53,4 @@ El workflow `.github/workflows/build-tauri.yml` ejecuta la compilación del inst
 3. Selecciona el archivo y verifica el resumen de productos, clientes y precios especiales.
 4. Guarda una nueva copia CSV antes de actualizar o reinstalar.
 
-La aplicación Python de v1.3 se mantiene intacta como respaldo. La distribución Windows de v2.0 ya se genera con Tauri + SQLite, por lo que el usuario no necesita instalar Python ni depender de un servidor web.
+La aplicación Python de v1.3 se mantiene intacta como respaldo. La distribución Windows de v2.0 se genera con Tauri + JSON local, por lo que el usuario no necesita instalar Python ni depender de un servidor web.

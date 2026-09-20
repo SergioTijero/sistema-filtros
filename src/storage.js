@@ -1,7 +1,10 @@
+import { load as loadJsonStore } from '@tauri-apps/plugin-store';
 import Database from '@tauri-apps/plugin-sql';
 
 export const STORAGE_KEY = 'filtros-express-v2-data';
-export const DB_PATH = 'sqlite:filtros_express_pro.db';
+export const STORE_PATH = 'filtros_express_pro.json';
+export const LEGACY_DB_PATH = 'sqlite:filtros_express_pro.db';
+const STORE_DATA_KEY = 'appData';
 
 export const EMPTY_DATA = {
   products: [],
@@ -9,15 +12,16 @@ export const EMPTY_DATA = {
   specialPrices: [],
 };
 
-let databasePromise;
-let databaseWriteQueue = Promise.resolve();
+let jsonStorePromise;
+let legacyDatabasePromise;
+let storeWriteQueue = Promise.resolve();
 
 export function isTauriRuntime() {
   return typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__?.invoke);
 }
 
 export function storageLabel() {
-  return isTauriRuntime() ? 'SQLite local' : 'Almacenamiento local';
+  return isTauriRuntime() ? 'Archivo JSON local' : 'Almacenamiento local';
 }
 
 function normalizeData(saved) {
@@ -41,31 +45,33 @@ function normalizeData(saved) {
   };
 }
 
+function parseSnapshot(saved) {
+  if (saved?.data && typeof saved.data === 'object') {
+    return {
+      data: normalizeData(saved.data),
+      updatedAt: Number(saved.updatedAt) || 0,
+    };
+  }
+  return { data: normalizeData(saved), updatedAt: 0 };
+}
+
+function hasData(data) {
+  return Boolean(data.products.length || data.clients.length || data.specialPrices.length);
+}
+
 function loadLocalSnapshot() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-    // v2.0.0 stored the data object directly. Accept that format while
-    // upgrading future writes to a timestamped recovery snapshot.
-    if (saved?.data && typeof saved.data === 'object') {
-      return {
-        data: normalizeData(saved.data),
-        updatedAt: Number(saved.updatedAt) || 0,
-      };
-    }
-    return { data: normalizeData(saved), updatedAt: 0 };
+    return parseSnapshot(saved);
   } catch {
     return { data: normalizeData(null), updatedAt: 0 };
   }
 }
 
-function loadLocalData() {
-  return loadLocalSnapshot().data;
-}
-
 function saveLocalData(data) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      version: 1,
+      version: 2,
       updatedAt: Date.now(),
       data,
     }));
@@ -76,146 +82,131 @@ function saveLocalData(data) {
   }
 }
 
-async function getDatabase() {
+async function getJsonStore() {
   if (!isTauriRuntime()) return null;
-  if (!databasePromise) {
-    databasePromise = Database.load(DB_PATH).then(async (db) => {
-      // Keep one compact JSON snapshot as the source of truth. This avoids
-      // partial writes when the app is closed while several rows are updated.
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS app_state (
-          id INTEGER PRIMARY KEY NOT NULL,
-          payload TEXT NOT NULL,
-          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS products (
-          code TEXT PRIMARY KEY NOT NULL,
-          cost REAL NOT NULL DEFAULT 0,
-          price REAL NOT NULL DEFAULT 0,
-          stock INTEGER NOT NULL DEFAULT 0
-        )
-      `);
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS clients (
-          id TEXT PRIMARY KEY NOT NULL,
-          name TEXT NOT NULL UNIQUE
-        )
-      `);
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS special_prices (
-          client_name TEXT NOT NULL,
-          product_code TEXT NOT NULL,
-          price REAL NOT NULL DEFAULT 0,
-          PRIMARY KEY (client_name, product_code)
-        )
-      `);
-      return db;
-    }).catch((error) => {
-      // A failed connection must not poison all future retries in this run.
-      databasePromise = undefined;
+  if (!jsonStorePromise) {
+    jsonStorePromise = loadJsonStore(STORE_PATH, { autoSave: false }).catch((error) => {
+      jsonStorePromise = undefined;
       throw error;
     });
   }
-  return databasePromise;
+  return jsonStorePromise;
 }
 
-async function writeDatabase(db, data) {
-  await db.execute(`
-    INSERT INTO app_state (id, payload, updated_at)
-    VALUES (1, $1, CURRENT_TIMESTAMP)
-    ON CONFLICT(id) DO UPDATE SET
-      payload = excluded.payload,
-      updated_at = excluded.updated_at
-  `, [JSON.stringify({ version: 1, updatedAt: Date.now(), data })]);
+async function writeJsonStore(store, data) {
+  await store.set(STORE_DATA_KEY, {
+    version: 2,
+    updatedAt: Date.now(),
+    data,
+  });
+  await store.save();
 }
 
-function queueDatabaseWrite(db, data) {
-  const nextWrite = databaseWriteQueue
+function queueStoreWrite(store, data) {
+  const nextWrite = storeWriteQueue
     .catch(() => undefined)
-    .then(() => writeDatabase(db, data));
-  databaseWriteQueue = nextWrite.catch(() => undefined);
+    .then(() => writeJsonStore(store, data));
+  storeWriteQueue = nextWrite.catch(() => undefined);
   return nextWrite;
 }
 
-function hasData(data) {
-  return data.products.length || data.clients.length || data.specialPrices.length;
+// SQLite is only opened when migrating an installation from the first v2
+// releases. New installations never read or write the legacy database.
+async function getLegacyDatabase() {
+  if (!isTauriRuntime()) return null;
+  if (!legacyDatabasePromise) {
+    legacyDatabasePromise = Database.load(LEGACY_DB_PATH).catch((error) => {
+      legacyDatabasePromise = undefined;
+      throw error;
+    });
+  }
+  return legacyDatabasePromise;
 }
 
-async function readLegacyTables(db) {
-  const [products, clients, specialPrices] = await Promise.all([
-    db.select('SELECT code, cost, price, stock FROM products ORDER BY code'),
-    db.select('SELECT id, name FROM clients ORDER BY name'),
-    db.select('SELECT client_name AS clientName, product_code AS productCode, price FROM special_prices ORDER BY client_name, product_code'),
-  ]);
-  return normalizeData({ products, clients, specialPrices });
+async function readLegacyDatabase() {
+  let db;
+  try {
+    db = await getLegacyDatabase();
+    if (!db) return normalizeData(null);
+
+    const tables = await db.select(`
+      SELECT name FROM sqlite_master
+      WHERE type = 'table'
+        AND name IN ('products', 'clients', 'special_prices')
+    `);
+    const tableNames = new Set((tables || []).map((table) => table.name));
+    if (!tableNames.size) return normalizeData(null);
+
+    const [products, clients, specialPrices] = await Promise.all([
+      tableNames.has('products') ? db.select('SELECT code, cost, price, stock FROM products ORDER BY code') : [],
+      tableNames.has('clients') ? db.select('SELECT id, name FROM clients ORDER BY name') : [],
+      tableNames.has('special_prices') ? db.select('SELECT client_name AS clientName, product_code AS productCode, price FROM special_prices ORDER BY client_name, product_code') : [],
+    ]);
+    return normalizeData({ products, clients, specialPrices });
+  } finally {
+    if (db) await db.close().catch(() => undefined);
+    legacyDatabasePromise = undefined;
+  }
 }
 
 export async function loadAppData() {
   const localSnapshot = loadLocalSnapshot();
   const localData = localSnapshot.data;
-  try {
-    const db = await getDatabase();
-    if (!db) return localData;
+  if (!isTauriRuntime()) return localData;
 
-    const stateRows = await db.select('SELECT payload FROM app_state WHERE id = $1', [1]);
-    const payload = stateRows?.[0]?.payload;
-    if (payload) {
-      try {
-        const saved = JSON.parse(payload);
-        const databaseSnapshot = saved?.data && typeof saved.data === 'object'
-          ? { data: normalizeData(saved.data), updatedAt: Number(saved.updatedAt) || 0 }
-          : { data: normalizeData(saved), updatedAt: 0 };
-        // The local snapshot is synchronous, so it can be newer than a
-        // SQLite write that was still queued when Windows closed the app.
-        if (localSnapshot.updatedAt > databaseSnapshot.updatedAt) {
-          await queueDatabaseWrite(db, localData);
-          return localData;
-        }
-        const databaseData = databaseSnapshot.data;
-        saveLocalData(databaseData);
-        return databaseData;
-      } catch (error) {
-        console.warn('La copia SQLite no tiene un formato válido; se revisarán las tablas anteriores.', error);
+  try {
+    const store = await getJsonStore();
+    const saved = await store.get(STORE_DATA_KEY);
+    if (saved) {
+      const jsonSnapshot = parseSnapshot(saved);
+      // localStorage is synchronous, so it may contain a newer change than a
+      // JSON store write that was still pending when Windows closed the app.
+      if (localSnapshot.updatedAt > jsonSnapshot.updatedAt) {
+        await queueStoreWrite(store, localData);
+        return localData;
       }
+      saveLocalData(jsonSnapshot.data);
+      return jsonSnapshot.data;
     }
 
-    // Migrate databases created by the first v2 build, which stored each
-    // collection in a separate table.
-    const legacyData = await readLegacyTables(db);
+    // Convert databases created by v2.0.0/v2.0.1 once, then use JSON forever.
+    const legacyData = await readLegacyDatabase().catch((error) => {
+      console.warn('No se pudo migrar la base anterior; se usará el respaldo local.', error);
+      return normalizeData(null);
+    });
     if (hasData(legacyData)) {
-      await queueDatabaseWrite(db, legacyData);
       saveLocalData(legacyData);
+      try {
+        await queueStoreWrite(store, legacyData);
+      } catch (error) {
+        console.warn('No se pudo escribir la migración JSON; se conservará la copia local.', error);
+      }
       return legacyData;
     }
 
     if (hasData(localData)) {
-      await queueDatabaseWrite(db, localData);
+      await queueStoreWrite(store, localData);
       return localData;
     }
-    return legacyData;
+    return normalizeData(null);
   } catch (error) {
-    // SQLite can be temporarily unavailable after an installer update or when
-    // a profile is not writable. The local snapshot keeps the user's work.
-    console.error('No se pudo abrir SQLite; se usará la copia local.', error);
+    console.error('No se pudo abrir el archivo JSON local; se usará la copia local.', error);
     return localData;
   }
 }
 
 export async function saveAppData(data) {
   const normalized = normalizeData(data);
-  // Always write the browser/WebView snapshot first. It is the recovery copy
-  // if SQLite is locked, unavailable, or the process closes during a write.
+  // Keep a synchronous recovery copy before sending the write to Tauri.
   saveLocalData(normalized);
   if (!isTauriRuntime()) return true;
+
   try {
-    const db = await getDatabase();
-    if (!db) return true;
-    await queueDatabaseWrite(db, normalized);
+    const store = await getJsonStore();
+    await queueStoreWrite(store, normalized);
     return true;
   } catch (error) {
-    console.error('No se pudo guardar en SQLite; se conserva una copia local.', error);
+    console.error('No se pudo guardar el archivo JSON; se conserva una copia local.', error);
     throw error;
   }
 }
