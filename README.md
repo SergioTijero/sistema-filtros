@@ -1,19 +1,19 @@
 # Filtros Express PRO
 
-Aplicación local para consultar precios, administrar inventario, gestionar clientes y asignar tarifas especiales. La versión actual es **v2.1.0**: React + Vite para la interfaz, Tauri para el ejecutable de escritorio y un archivo JSON local para los datos.
+Aplicación local para consultar precios, administrar inventario, gestionar clientes y asignar tarifas especiales. La versión actual es **v2.1.1**: React + Vite para la interfaz, Tauri para el ejecutable de escritorio y un archivo JSON local para los datos.
 
 La versión Python 1.3 se conserva como línea anterior y como fuente de migración CSV.
 
 ## Descargar v2.0
 
-La versión publicada para Windows x64 está disponible en [GitHub Releases](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.1.0):
+La versión publicada para Windows x64 está disponible en [GitHub Releases](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.1.1):
 
-- [Instalador Windows `.exe`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.1.0/Filtros.Express.PRO_2.1.0_x64-setup.exe)
-- [Paquete Windows `.msi`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.1.0/Filtros.Express.PRO_2.1.0_x64_en-US.msi)
+- [Instalador Windows `.exe`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.1.1/Filtros.Express.PRO_2.1.1_x64-setup.exe)
+- [Paquete Windows `.msi`](https://github.com/SergioTijero/sistema-filtros/releases/download/v2.1.1/Filtros.Express.PRO_2.1.1_x64_en-US.msi)
 
 El instalador no requiere Python ni conexión a internet para trabajar con inventario, clientes o precios. La aplicación guarda la información en `filtros_express_pro.json`, dentro de la carpeta de datos de la aplicación.
 
-En v2.1.0 cada cambio mantiene además una copia local de recuperación y las escrituras JSON se serializan. Esto permite recuperar el último estado si Windows cierra la aplicación mientras se está guardando. Las bases SQLite creadas por v2.0.0/v2.0.1 se leen una sola vez para migrarlas al nuevo archivo JSON.
+En v2.1.1 cada cambio mantiene además una copia local de recuperación y las escrituras JSON se serializan. Esto permite recuperar el último estado si Windows cierra la aplicación mientras se está guardando. Las bases SQLite creadas por v2.0.0/v2.0.1 se leen una sola vez para migrarlas al nuevo archivo JSON.
 
 ## Funciones de v2.0
 
@@ -102,8 +102,8 @@ GitHub Actions mantiene dos líneas de publicación:
 Para publicar una nueva v2:
 
 ```bash
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.1.1
+git push origin v2.1.1
 ```
 
 El workflow [`build-tauri.yml`](.github/workflows/build-tauri.yml) compila en `windows-latest` y adjunta los instaladores a la release. Para consultar el estado, revisa la pestaña [Actions](https://github.com/SergioTijero/sistema-filtros/actions).
@@ -121,7 +121,7 @@ main.py                      Aplicación Python v1.3 conservada
 
 ## Estado de la versión
 
-- Release: [v2.1.0](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.1.0)
+- Release: [v2.1.1](https://github.com/SergioTijero/sistema-filtros/releases/tag/v2.1.1)
 - Build Windows: [workflow Tauri](https://github.com/SergioTijero/sistema-filtros/actions/runs/30410971693)
 - Rama de integración: [`agent/release-v2-tauri`](https://github.com/SergioTijero/sistema-filtros/tree/agent/release-v2-tauri)
 

@@ -132,10 +132,22 @@ async function readLegacyDatabase() {
     const tables = await db.select(`
       SELECT name FROM sqlite_master
       WHERE type = 'table'
-        AND name IN ('products', 'clients', 'special_prices')
+        AND name IN ('app_state', 'products', 'clients', 'special_prices')
     `);
     const tableNames = new Set((tables || []).map((table) => table.name));
     if (!tableNames.size) return normalizeData(null);
+
+    if (tableNames.has('app_state')) {
+      const rows = await db.select('SELECT payload FROM app_state WHERE id = 1');
+      const payload = rows?.[0]?.payload;
+      if (payload) {
+        try {
+          return parseSnapshot(JSON.parse(payload)).data;
+        } catch (error) {
+          console.warn('El snapshot SQLite anterior no tiene un formato válido.', error);
+        }
+      }
+    }
 
     const [products, clients, specialPrices] = await Promise.all([
       tableNames.has('products') ? db.select('SELECT code, cost, price, stock FROM products ORDER BY code') : [],

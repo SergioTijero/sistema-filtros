@@ -1,6 +1,6 @@
 [package]
 name = "filtros_express_pro"
-version = "2.1.0"
+version = "2.1.1"
 description = "Gestor local de inventario y precios para Filtros Express PRO"
 authors = ["Filtros Express PRO"]
 license = ""
